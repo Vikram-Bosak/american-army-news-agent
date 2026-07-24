@@ -43,7 +43,9 @@ def get_related_image(keyword, avoid_url=None):
     words = [w for w in clean_keyword.split() if w]
     stop_words = {"to", "joins", "star", "in", "for", "gets", "with", "from", "on", "at", "by", "of", "and", "a", "an", "the", "about", "set", "is", "are", "was", "were", "to", "star", "direct", "talks"}
     filtered_words = [w for w in words if w.lower() not in stop_words]
-    query = " ".join(filtered_words[:4]) if len(filtered_words) > 4 else " ".join(filtered_words)
+    # Restrict title keywords to 3 words and append "US Army" to guarantee the image features American Army soldiers or assets
+    base_query = " ".join(filtered_words[:3]) if len(filtered_words) > 3 else " ".join(filtered_words)
+    query = f"{base_query} US Army"
     
     logging.info(f"Searching for related image using query: '{query}'")
     
