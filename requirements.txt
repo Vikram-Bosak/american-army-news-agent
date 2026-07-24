@@ -1,0 +1,15 @@
+pytrends==4.9.2
+pillow==10.3.0
+google-api-python-client==2.126.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+requests==2.31.0
+schedule==1.2.1
+google-genai==0.3.0
+python-dotenv==1.0.1
+duckduckgo-search==5.3.0
+openai
+pytz
+feedparser
+pilmoji
+opencv-python-headless
