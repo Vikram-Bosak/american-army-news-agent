@@ -85,22 +85,39 @@ def job():
             
         logging.info(f"Headline: {headline}")
         
-        poster_path = f"output/post_{post_id}.jpg"
-        
         # 3. Image Creation
-        processed_img_path = create_facebook_post(
-            image_url=image_url, 
-            image_url_2=image_url_2,
-            headline=headline,
-            hook_text=hook_text,
-            source_name=source_name,
-            output_path=poster_path,
-            logo_path="assets/logo/logo.png"
-        )
-        
-        if not processed_img_path:
-            logging.error(f"Failed to create image for {title}.")
-            continue
+        if isinstance(image_url, list):
+            processed_img_path = []
+            for idx, img_u in enumerate(image_url):
+                poster_path = f"output/post_{post_id}_{idx}.jpg"
+                single_path = create_facebook_post(
+                    image_url=img_u, 
+                    image_url_2=image_url_2,
+                    headline=headline,
+                    hook_text=hook_text,
+                    source_name=source_name,
+                    output_path=poster_path,
+                    logo_path="assets/logo/logo.png"
+                )
+                if single_path:
+                    processed_img_path.append(single_path)
+            if not processed_img_path:
+                logging.error(f"Failed to create any images for {title}.")
+                continue
+        else:
+            poster_path = f"output/post_{post_id}.jpg"
+            processed_img_path = create_facebook_post(
+                image_url=image_url, 
+                image_url_2=image_url_2,
+                headline=headline,
+                hook_text=hook_text,
+                source_name=source_name,
+                output_path=poster_path,
+                logo_path="assets/logo/logo.png"
+            )
+            if not processed_img_path:
+                logging.error(f"Failed to create image for {title}.")
+                continue
             
         # 4. Facebook Caption
         try:
@@ -115,7 +132,7 @@ def job():
         
         if is_dry_run:
             logging.info("--- DRY-RUN MODE ACTIVE ---")
-            logging.info(f"Generated Image: {processed_img_path}")
+            logging.info(f"Generated Image(s): {processed_img_path}")
             logging.info(f"Facebook Caption:\n{facebook_caption}")
             save_processed_trend(title)
             logging.info("Dry-run processed successfully.")
@@ -134,6 +151,8 @@ def job():
         status_text = "Success" if upload_success else "Failed"
         post_url = f"https://www.facebook.com/{page_id}/posts/{fb_post_id}" if upload_success else "N/A"
         
+        original_files_str = ", ".join(os.path.basename(p) for p in processed_img_path) if isinstance(processed_img_path, list) else os.path.basename(processed_img_path)
+        
         report = f"""✅ American Army News Pipeline Run Completed
         
 🇺🇸 Headline:
@@ -144,7 +163,7 @@ def job():
 📝 Description:
 {facebook_caption}
 
-Original File: {os.path.basename(processed_img_path)}
+Original File: {original_files_str}
 
 🔗 Facebook Photo Post URL:
 {post_url}

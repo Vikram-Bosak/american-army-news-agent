@@ -76,7 +76,7 @@ def get_latest_army_news(max_age_hours=2):
         "https://nitter.privacydev.net",
         "https://nitter.net"
     ]
-    official_users = ["USArmy", "DeptofDefense"]
+    official_users = ["USArmy", "DeptofDefense", "I_Corps"]
     for user in official_users:
         for instance in nitter_instances:
             nitter_url = f"{instance}/{user}/rss"
@@ -114,26 +114,30 @@ def get_latest_army_news(max_age_hours=2):
                     if "video" in desc_lower or "gif" in desc_lower or ".mp4" in desc_lower:
                         continue
                     
-                    # Extract image URL from Nitter HTML description (if present)
-                    image_url = None
+                    # Extract image URLs from Nitter HTML description (if present)
+                    image_urls = []
                     img_matches = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', description)
                     for img in img_matches:
                         if "/pic/media" in img:
                             media_path = img.split("/pic/media%2F")[-1]
                             import urllib.parse
                             media_path = urllib.parse.unquote(media_path)
-                            image_url = f"https://pbs.twimg.com/media/{media_path}"
-                            break
+                            image_urls.append(f"https://pbs.twimg.com/media/{media_path}")
                         elif img.startswith("http"):
-                            image_url = img
-                            break
+                            image_urls.append(img)
+                            
+                    image_val = None
+                    if len(image_urls) > 1:
+                        image_val = image_urls
+                    elif len(image_urls) == 1:
+                        image_val = image_urls[0]
                             
                     # For Twitter, the title is usually the tweet text
                     news_items.append({
                         "title": title[:100] + "..." if len(title) > 100 else title,
                         "link": link,
                         "description": description,
-                        "image_url": image_url,
+                        "image_url": image_val,
                         "timestamp": pub_time,
                         "source": "TWITTER/NITTER"
                     })
