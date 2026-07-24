@@ -16,7 +16,7 @@ venv.bak/
 output/post_*.jpg
 output/post_*.png
 output/post_*.webp
-output/processed_news.txt
+
 
 # OS metadata
 .DS_Store
