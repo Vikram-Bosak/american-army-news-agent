@@ -5,7 +5,7 @@ from openai import OpenAI
 
 client = OpenAI(
   base_url="https://integrate.api.nvidia.com/v1",
-  api_key=os.getenv("NVIDIA_API_KEY", "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")
+  api_key=os.getenv("NVIDIA_API_KEY", "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")
 )
 
 def generate_content_from_article(title, description):
