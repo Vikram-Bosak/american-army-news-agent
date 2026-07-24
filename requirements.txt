@@ -13,3 +13,5 @@ pytz
 feedparser
 pilmoji
 opencv-python-headless
+googlenewsdecoder
+

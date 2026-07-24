@@ -7,14 +7,26 @@ import re
 
 def get_og_image(url):
     """
-    Fetches the article URL and extracts the OpenGraph image tag.
+    Fetches the article URL (decoding it if it's a Google News link) and extracts the OpenGraph image tag.
     """
+    target_url = url
+    if "news.google.com" in url:
+        try:
+            from googlenewsdecoder import GoogleDecoder
+            decoder = GoogleDecoder()
+            decoded_res = decoder.decode_google_news_url(url)
+            if decoded_res.get("status") and decoded_res.get("decoded_url"):
+                target_url = decoded_res["decoded_url"]
+                logging.info(f"Successfully decoded Google News URL to: {target_url}")
+        except Exception as e:
+            logging.warning(f"Failed to decode Google News link using googlenewsdecoder: {e}")
+
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
         }
-        logging.info(f"Attempting to extract og:image from: {url}")
-        r = requests.get(url, headers=headers, timeout=10)
+        logging.info(f"Attempting to extract og:image from: {target_url}")
+        r = requests.get(target_url, headers=headers, timeout=10)
         if r.status_code == 200:
             html = r.text
             match = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
@@ -25,7 +37,7 @@ def get_og_image(url):
                 logging.info(f"Found og:image: {img_url}")
                 return img_url
     except Exception as e:
-        logging.warning(f"Failed to scrape og:image from {url}: {e}")
+        logging.warning(f"Failed to scrape og:image from {target_url}: {e}")
     return None
 
 FEEDS = [
