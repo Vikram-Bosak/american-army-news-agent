@@ -243,8 +243,7 @@ def create_facebook_post(image_url, image_url_2, headline, source_name="NEWS", o
         draw_temp = ImageDraw.Draw(base_img)
         draw_temp.line([(w1, 0), (w1, base_height)], fill="#000000", width=4)
     elif img1:
-        img1_blurred = img1.filter(ImageFilter.GaussianBlur(3))
-        img1_cropped = center_crop(img1_blurred, base_width, base_height)
+        img1_cropped = center_crop(img1, base_width, base_height)
         base_img.paste(img1_cropped, (0, 0))
     else:
         # If no image was found, create a premium background with patriotic gradient color
@@ -302,6 +301,17 @@ def create_facebook_post(image_url, image_url_2, headline, source_name="NEWS", o
     text_total_height = render_multicolor_text_centered(draw, combined_text, 0, text_font, max_text_width, base_width, dry_run=True)
     bottom_padding = 60
     text_start_y = base_height - bottom_padding - text_total_height
+    
+    # Blur only the text background area dynamically to keep the top of the image crystal clear
+    blur_y_start = int(text_start_y - 140)
+    if blur_y_start < 0:
+        blur_y_start = 0
+    bottom_crop = base_img.crop((0, blur_y_start, base_width, base_height))
+    bottom_blurred = bottom_crop.filter(ImageFilter.GaussianBlur(15))
+    base_img.paste(bottom_blurred, (0, blur_y_start))
+    
+    # Re-initialize draw context after pasting the blurred section
+    draw = ImageDraw.Draw(base_img)
     
     # Try custom logo/banner first, otherwise print fallback text logo
     banner_path = "assets/logo/banner.png"
