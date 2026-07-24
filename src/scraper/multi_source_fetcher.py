@@ -70,78 +70,75 @@ def get_latest_army_news(max_age_hours=2):
     current_time = time.time()
     max_age_seconds = max_age_hours * 3600
 
-    # 1. Fetch from Nitter RSS Feeds (Twitter alternative)
+    # 1. Fetch from Nitter RSS Feeds (Twitter alternative for official accounts)
     nitter_instances = [
         "https://nitter.cz",
         "https://nitter.privacydev.net",
         "https://nitter.net"
     ]
-    for instance in nitter_instances:
-        nitter_url = f"{instance}/search/rss?q=%22American+Army%22+OR+%22US+Army%22+trending"
-        logging.info(f"Scanning Nitter feed: {nitter_url}")
-        try:
-            feed = feedparser.parse(nitter_url)
-            if not feed.entries:
-                continue
-                
-            for entry in feed.entries:
-                pub_time = None
-                if hasattr(entry, 'published_parsed') and entry.published_parsed:
-                    pub_time = time.mktime(entry.published_parsed)
-                elif hasattr(entry, 'updated_parsed') and entry.updated_parsed:
-                    pub_time = time.mktime(entry.updated_parsed)
-                
-                if not pub_time:
-                    continue
-                
-                age_seconds = current_time - pub_time
-                if age_seconds < 0 or age_seconds > max_age_seconds:
+    official_users = ["USArmy", "DeptofDefense"]
+    for user in official_users:
+        for instance in nitter_instances:
+            nitter_url = f"{instance}/{user}/rss"
+            logging.info(f"Scanning official Twitter feed on Nitter: {nitter_url}")
+            try:
+                feed = feedparser.parse(nitter_url)
+                if not feed.entries:
                     continue
                     
-                title = entry.title
-                # Convert Nitter link to standard Twitter URL
-                link = entry.link
-                if instance in link:
-                    link = link.replace(instance, "https://twitter.com").replace("#m", "")
+                user_found = False
+                for entry in feed.entries:
+                    pub_time = None
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                        pub_time = time.mktime(entry.published_parsed)
+                    elif hasattr(entry, 'updated_parsed') and entry.updated_parsed:
+                        pub_time = time.mktime(entry.updated_parsed)
                     
-                description = getattr(entry, 'description', '')
-                
-                # Limit to official military handles on Twitter
-                official_handles = ["@usarmy", "@deptofdefense", "@secarmy"]
-                title_lower = title.lower()
-                if not any(handle in title_lower for handle in official_handles):
-                    continue
-                
-                # Extract image URL from Nitter HTML description (if present)
-                image_url = None
-                img_matches = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', description)
-                for img in img_matches:
-                    if "/pic/media" in img:
-                        # Convert proxy image to standard Twitter image
-                        # Example: /pic/media%2FEv12345.jpg -> https://pbs.twimg.com/media/Ev12345.jpg
-                        media_path = img.split("/pic/media%2F")[-1]
-                        # unquote URL characters
-                        import urllib.parse
-                        media_path = urllib.parse.unquote(media_path)
-                        image_url = f"https://pbs.twimg.com/media/{media_path}"
-                        break
-                    elif img.startswith("http"):
-                        image_url = img
-                        break
+                    if not pub_time:
+                        continue
+                    
+                    age_seconds = current_time - pub_time
+                    if age_seconds < 0 or age_seconds > max_age_seconds:
+                        continue
                         
-                news_items.append({
-                    "title": title[:100] + "..." if len(title) > 100 else title,
-                    "link": link,
-                    "description": description,
-                    "image_url": image_url,
-                    "timestamp": pub_time,
-                    "source": "TWITTER/NITTER"
-                })
-            # If we successfully parsed from one instance, no need to query others to avoid rate limiting
-            if news_items:
-                break
-        except Exception as e:
-            logging.error(f"Error fetching from Nitter instance {instance}: {e}")
+                    title = entry.title
+                    # Convert Nitter link to standard Twitter URL
+                    link = entry.link
+                    if instance in link:
+                        link = link.replace(instance, "https://twitter.com").replace("#m", "")
+                        
+                    description = getattr(entry, 'description', '')
+                    
+                    # Extract image URL from Nitter HTML description (if present)
+                    image_url = None
+                    img_matches = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', description)
+                    for img in img_matches:
+                        if "/pic/media" in img:
+                            media_path = img.split("/pic/media%2F")[-1]
+                            import urllib.parse
+                            media_path = urllib.parse.unquote(media_path)
+                            image_url = f"https://pbs.twimg.com/media/{media_path}"
+                            break
+                        elif img.startswith("http"):
+                            image_url = img
+                            break
+                            
+                    # For Twitter, the title is usually the tweet text
+                    news_items.append({
+                        "title": title[:100] + "..." if len(title) > 100 else title,
+                        "link": link,
+                        "description": description,
+                        "image_url": image_url,
+                        "timestamp": pub_time,
+                        "source": "TWITTER/NITTER"
+                    })
+                    user_found = True
+                
+                # If we successfully parsed from one working instance, move to the next user
+                if user_found:
+                    break
+            except Exception as e:
+                logging.error(f"Error fetching from Nitter instance {instance} for {user}: {e}")
 
 
     # 2. Fetch from Google News RSS Feeds
