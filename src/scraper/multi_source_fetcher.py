@@ -39,9 +39,8 @@ def get_og_image(url):
     target_url = url
     if "news.google.com" in url:
         try:
-            from googlenewsdecoder import GoogleDecoder
-            decoder = GoogleDecoder()
-            decoded_res = decoder.decode_google_news_url(url)
+            from googlenewsdecoder import new_decoderv1
+            decoded_res = new_decoderv1(url)
             if decoded_res.get("status") and decoded_res.get("decoded_url"):
                 target_url = decoded_res["decoded_url"]
                 logging.info(f"Successfully decoded Google News URL to: {target_url}")
@@ -210,9 +209,8 @@ def get_latest_army_news(max_age_hours=2):
                 target_url = link
                 if "news.google.com" in link:
                     try:
-                        from googlenewsdecoder import GoogleDecoder
-                        decoder = GoogleDecoder()
-                        decoded_res = decoder.decode_google_news_url(link)
+                        from googlenewsdecoder import new_decoderv1
+                        decoded_res = new_decoderv1(link)
                         if decoded_res.get("status") and decoded_res.get("decoded_url"):
                             target_url = decoded_res["decoded_url"]
                     except Exception:
