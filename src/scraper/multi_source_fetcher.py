@@ -3,6 +3,30 @@ import logging
 import time
 import os
 import requests
+import re
+
+def get_og_image(url):
+    """
+    Fetches the article URL and extracts the OpenGraph image tag.
+    """
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        }
+        logging.info(f"Attempting to extract og:image from: {url}")
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            html = r.text
+            match = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+            if not match:
+                match = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', html, re.IGNORECASE)
+            if match:
+                img_url = match.group(1)
+                logging.info(f"Found og:image: {img_url}")
+                return img_url
+    except Exception as e:
+        logging.warning(f"Failed to scrape og:image from {url}: {e}")
+    return None
 
 FEEDS = [
     "https://news.google.com/rss/search?q=%22American+Army%22+OR+%22US+Army%22&hl=en-US&gl=US&ceid=US:en"
@@ -140,6 +164,10 @@ def get_latest_army_news(max_age_hours=2):
                         if enc.get('type', '').startswith('image/'):
                             image_url = enc.get('href')
                             break
+                
+                # 4. Try scraping og:image from original article URL
+                if not image_url and link:
+                    image_url = get_og_image(link)
                             
                 # Note: Unlike entertainment news, Google News articles sometimes do not bundle the image URL inside the RSS XML entry.
                 # In that case, we can still fetch the entry and rely on image search in auto_agent.py.
