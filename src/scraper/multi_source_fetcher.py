@@ -8,29 +8,16 @@ from urllib.parse import urlparse
 
 def is_us_news_site(url):
     """
-    Checks if a URL belongs to a US-centric news site, filtering out foreign domains.
+    Checks if a URL belongs to a US official military/government site or media distribution portal.
     """
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
     
-    parts = domain.split('.')
-    if len(parts) > 1:
-        tld = parts[-1]
-        allowed_tlds = {"com", "org", "net", "gov", "mil", "edu", "us"}
-        if tld not in allowed_tlds:
-            return False
-            
-    non_us_keywords = [
-        "hindustantimes", "indiatimes", "timesofindia", "middleeasteye",
-        "kurdistan24", "aljazeera", "rt.com", "sputnik", "chinadaily",
-        "thehindu", "ndtv", "pakistantoday", "dailymail", "guardian",
-        "telegraph", "independent", "bbc", "france24", "dw.com", "tass",
-        "almanar", "presstv", "scmp", "nikkei", "reuters.co", "news.cn"
-    ]
-    if any(kw in domain for kw in non_us_keywords):
-        return False
+    # Strictly allow .mil, .gov, or dvidshub.net (official military media hub)
+    if domain.endswith(".mil") or domain.endswith(".gov") or "dvidshub.net" in domain:
+        return True
         
-    return True
+    return False
 
 def get_og_image(url):
     """
@@ -118,6 +105,12 @@ def get_latest_army_news(max_age_hours=2):
                     link = link.replace(instance, "https://twitter.com").replace("#m", "")
                     
                 description = getattr(entry, 'description', '')
+                
+                # Limit to official military handles on Twitter
+                official_handles = ["@usarmy", "@deptofdefense", "@secarmy"]
+                title_lower = title.lower()
+                if not any(handle in title_lower for handle in official_handles):
+                    continue
                 
                 # Extract image URL from Nitter HTML description (if present)
                 image_url = None
