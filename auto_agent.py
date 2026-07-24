@@ -63,10 +63,11 @@ def job():
         source_url = item.get("link", "")
         source_name = item.get("source", "NEWS")
         
-        # 1. Fetch Related Image (if first one is not found or as second image)
+        # 1. Ensure only the original news article thumbnail is used
         if not image_url:
-            image_url = get_related_image(title)
-        image_url_2 = get_related_image(title, avoid_url=image_url)
+            logging.warning(f"No original thumbnail image found for: {title}. Skipping article to preserve exact thumbnail rule.")
+            continue
+        image_url_2 = None
         
         os.makedirs("output", exist_ok=True)
         generation_time = datetime.now(pytz.timezone('America/New_York')).strftime('%Y%m%d_%H%M%S')
