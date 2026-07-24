@@ -29,7 +29,9 @@ def get_og_image(url):
     return None
 
 FEEDS = [
-    "https://news.google.com/rss/search?q=%22American+Army%22+OR+%22US+Army%22&hl=en-US&gl=US&ceid=US:en"
+    "https://news.google.com/rss/search?q=%22American+Army%22+OR+%22US+Army%22+trending&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=%22American+Army%22+OR+%22US+Army%22+breaking&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=%22American+Army%22+OR+%22US+Army%22+latest&hl=en-US&gl=US&ceid=US:en"
 ]
 
 def get_latest_army_news(max_age_hours=2):
@@ -50,7 +52,7 @@ def get_latest_army_news(max_age_hours=2):
         "https://nitter.net"
     ]
     for instance in nitter_instances:
-        nitter_url = f"{instance}/search/rss?q=%22American+Army%22+OR+%22US+Army%22"
+        nitter_url = f"{instance}/search/rss?q=%22American+Army%22+OR+%22US+Army%22+trending"
         logging.info(f"Scanning Nitter feed: {nitter_url}")
         try:
             feed = feedparser.parse(nitter_url)
