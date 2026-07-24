@@ -321,7 +321,7 @@ def create_facebook_post(image_url, image_url_2, headline, source_name="NEWS", o
         # Fallback branding text
         try:
             brand_font = get_font("anton", size=36)
-            brand_text = "AMERICAN ARMY NEWS"
+            brand_text = os.getenv("BRANDING_TEXT", "AMERICAN ARMY NEWS").upper()
             bbox = draw.textbbox((0, 0), brand_text, font=brand_font)
             brand_w = bbox[2] - bbox[0]
             bx = (base_width - brand_w) // 2
