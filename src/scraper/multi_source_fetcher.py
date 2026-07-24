@@ -109,6 +109,11 @@ def get_latest_army_news(max_age_hours=2):
                         
                     description = getattr(entry, 'description', '')
                     
+                    # Skip video/GIF tweets to only process high-res photos
+                    desc_lower = description.lower()
+                    if "<video" in desc_lower or ".mp4" in desc_lower or "video_thumb" in desc_lower or "ext_tw_video_thumb" in desc_lower:
+                        continue
+                    
                     # Extract image URL from Nitter HTML description (if present)
                     image_url = None
                     img_matches = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', description)
