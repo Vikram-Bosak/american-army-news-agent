@@ -4,6 +4,33 @@ import time
 import os
 import requests
 import re
+from urllib.parse import urlparse
+
+def is_us_news_site(url):
+    """
+    Checks if a URL belongs to a US-centric news site, filtering out foreign domains.
+    """
+    parsed = urlparse(url)
+    domain = parsed.netloc.lower()
+    
+    parts = domain.split('.')
+    if len(parts) > 1:
+        tld = parts[-1]
+        allowed_tlds = {"com", "org", "net", "gov", "mil", "edu", "us"}
+        if tld not in allowed_tlds:
+            return False
+            
+    non_us_keywords = [
+        "hindustantimes", "indiatimes", "timesofindia", "middleeasteye",
+        "kurdistan24", "aljazeera", "rt.com", "sputnik", "chinadaily",
+        "thehindu", "ndtv", "pakistantoday", "dailymail", "guardian",
+        "telegraph", "independent", "bbc", "france24", "dw.com", "tass",
+        "almanar", "presstv", "scmp", "nikkei", "reuters.co", "news.cn"
+    ]
+    if any(kw in domain for kw in non_us_keywords):
+        return False
+        
+    return True
 
 def get_og_image(url):
     """
@@ -179,15 +206,31 @@ def get_latest_army_news(max_age_hours=2):
                             image_url = enc.get('href')
                             break
                 
-                # 4. Try scraping og:image from original article URL
-                if not image_url and link:
-                    image_url = get_og_image(link)
+                # Decode Google News link to verify destination domain is US-centric
+                target_url = link
+                if "news.google.com" in link:
+                    try:
+                        from googlenewsdecoder import GoogleDecoder
+                        decoder = GoogleDecoder()
+                        decoded_res = decoder.decode_google_news_url(link)
+                        if decoded_res.get("status") and decoded_res.get("decoded_url"):
+                            target_url = decoded_res["decoded_url"]
+                    except Exception:
+                        pass
+                
+                if not is_us_news_site(target_url):
+                    logging.info(f"Skipping non-US news site: {target_url}")
+                    continue
+                
+                # 4. Try scraping og:image from decoded publisher URL
+                if not image_url and target_url:
+                    image_url = get_og_image(target_url)
                             
                 # Note: Unlike entertainment news, Google News articles sometimes do not bundle the image URL inside the RSS XML entry.
                 # In that case, we can still fetch the entry and rely on image search in auto_agent.py.
                 news_items.append({
                     "title": title,
-                    "link": link,
+                    "link": target_url,
                     "description": description,
                     "image_url": image_url,
                     "timestamp": pub_time,
