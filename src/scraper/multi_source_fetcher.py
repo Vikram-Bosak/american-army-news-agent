@@ -20,54 +20,73 @@ def get_latest_army_news(max_age_hours=2):
     current_time = time.time()
     max_age_seconds = max_age_hours * 3600
 
-    # 1. Try Twitter (X) if credentials are provided (Stub/Placeholder/Integration)
-    x_bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
-    if x_bearer_token:
-        logging.info("Twitter API Credentials found. Attempting to fetch tweets...")
+    # 1. Fetch from Nitter RSS Feeds (Twitter alternative)
+    nitter_instances = [
+        "https://nitter.cz",
+        "https://nitter.privacydev.net",
+        "https://nitter.net"
+    ]
+    for instance in nitter_instances:
+        nitter_url = f"{instance}/search/rss?q=%22American+Army%22+OR+%22US+Army%22+OR+%22US+Military%22"
+        logging.info(f"Scanning Nitter feed: {nitter_url}")
         try:
-            # Simple fetch from Twitter API search endpoint
-            search_url = "https://api.twitter.com/2/tweets/search/recent"
-            headers = {"Authorization": f"Bearer {x_bearer_token}"}
-            params = {
-                "query": "(\"American Army\" OR \"US Army\" OR \"US military\") -is:retweet has:media",
-                "max_results": 10,
-                "tweet.fields": "created_at,attachments",
-                "expansions": "attachments.media_keys",
-                "media.fields": "url,preview_image_url"
-            }
-            response = requests.get(search_url, headers=headers, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                tweets = data.get("data", [])
-                media_map = {m["media_key"]: m.get("url") or m.get("preview_image_url") 
-                             for m in data.get("includes", {}).get("media", [])}
+            feed = feedparser.parse(nitter_url)
+            if not feed.entries:
+                continue
                 
-                for t in tweets:
-                    # Parse created_at
-                    created_at_str = t.get("created_at")
-                    # Convert RFC3339 string to timestamp
-                    # example: 2026-07-24T05:28:30.000Z
-                    import datetime
-                    dt = datetime.datetime.strptime(created_at_str.split(".")[0], "%Y-%m-%dT%H:%M:%S")
-                    pub_time = dt.replace(tzinfo=datetime.timezone.utc).timestamp()
+            for entry in feed.entries:
+                pub_time = None
+                if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                    pub_time = time.mktime(entry.published_parsed)
+                elif hasattr(entry, 'updated_parsed') and entry.updated_parsed:
+                    pub_time = time.mktime(entry.updated_parsed)
+                
+                if not pub_time:
+                    continue
+                
+                age_seconds = current_time - pub_time
+                if age_seconds < 0 or age_seconds > max_age_seconds:
+                    continue
                     
-                    age_seconds = current_time - pub_time
-                    if 0 <= age_seconds <= max_age_seconds:
-                        media_keys = t.get("attachments", {}).get("media_keys", [])
-                        img_url = media_map.get(media_keys[0]) if media_keys else None
+                title = entry.title
+                # Convert Nitter link to standard Twitter URL
+                link = entry.link
+                if instance in link:
+                    link = link.replace(instance, "https://twitter.com").replace("#m", "")
+                    
+                description = getattr(entry, 'description', '')
+                
+                # Extract image URL from Nitter HTML description (if present)
+                image_url = None
+                img_matches = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', description)
+                for img in img_matches:
+                    if "/pic/media" in img:
+                        # Convert proxy image to standard Twitter image
+                        # Example: /pic/media%2FEv12345.jpg -> https://pbs.twimg.com/media/Ev12345.jpg
+                        media_path = img.split("/pic/media%2F")[-1]
+                        # unquote URL characters
+                        import urllib.parse
+                        media_path = urllib.parse.unquote(media_path)
+                        image_url = f"https://pbs.twimg.com/media/{media_path}"
+                        break
+                    elif img.startswith("http"):
+                        image_url = img
+                        break
                         
-                        news_items.append({
-                            "title": t.get("text")[:100] + "...",
-                            "link": f"https://twitter.com/twitter/status/{t.get('id')}",
-                            "description": t.get("text"),
-                            "image_url": img_url,
-                            "timestamp": pub_time,
-                            "source": "TWITTER"
-                        })
-            else:
-                logging.warning(f"Twitter API request failed with status code {response.status_code}: {response.text}")
+                news_items.append({
+                    "title": title[:100] + "..." if len(title) > 100 else title,
+                    "link": link,
+                    "description": description,
+                    "image_url": image_url,
+                    "timestamp": pub_time,
+                    "source": "TWITTER/NITTER"
+                })
+            # If we successfully parsed from one instance, no need to query others to avoid rate limiting
+            if news_items:
+                break
         except Exception as e:
-            logging.error(f"Error fetching from Twitter: {e}")
+            logging.error(f"Error fetching from Nitter instance {instance}: {e}")
+
 
     # 2. Fetch from Google News RSS Feeds
     for rss_url in FEEDS:
