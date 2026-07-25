@@ -14,7 +14,30 @@ from src.image_editor.image_processor import create_facebook_post
 from src.facebook.facebook_publisher import upload_to_facebook
 from src.discord.discord_reporter import send_discord_report
 
+import requests
+import shutil
+from urllib.parse import urlparse
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def download_original_image(url, output_path):
+    """Downloads the image as-is (in its original quality) without any editing or processing."""
+    try:
+        if url.startswith("http"):
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            r = requests.get(url, headers=headers, timeout=15)
+            r.raise_for_status()
+            with open(output_path, "wb") as f:
+                f.write(r.content)
+            logging.info(f"Downloaded original image to {output_path}")
+            return output_path
+        else:
+            shutil.copy(url, output_path)
+            logging.info(f"Copied original local image to {output_path}")
+            return output_path
+    except Exception as e:
+        logging.error(f"Error downloading original image from {url}: {e}")
+        return None
 
 def normalize_title(title):
     """Normalize title for comparison by removing non-alphanumeric chars and lowercasing."""
@@ -89,16 +112,29 @@ def job():
         if isinstance(image_url, list):
             processed_img_path = []
             for idx, img_u in enumerate(image_url):
-                poster_path = f"output/post_{post_id}_{idx}.jpg"
-                single_path = create_facebook_post(
-                    image_url=img_u, 
-                    image_url_2=image_url_2,
-                    headline=headline,
-                    hook_text=hook_text,
-                    source_name=source_name,
-                    output_path=poster_path,
-                    logo_path="assets/logo/logo.png"
-                )
+                if idx == 0:
+                    poster_path = f"output/post_{post_id}_{idx}.jpg"
+                    single_path = create_facebook_post(
+                        image_url=img_u, 
+                        image_url_2=image_url_2,
+                        headline=headline,
+                        hook_text=hook_text,
+                        source_name=source_name,
+                        output_path=poster_path,
+                        logo_path="assets/logo/logo.png"
+                    )
+                else:
+                    ext = ".jpg"
+                    try:
+                        parsed_url = urlparse(img_u)
+                        _, url_ext = os.path.splitext(parsed_url.path)
+                        if url_ext.lower() in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+                            ext = url_ext.lower()
+                    except Exception:
+                        pass
+                    poster_path = f"output/post_{post_id}_{idx}{ext}"
+                    single_path = download_original_image(img_u, poster_path)
+                
                 if single_path:
                     processed_img_path.append(single_path)
             if not processed_img_path:
@@ -153,6 +189,12 @@ def job():
         
         original_files_str = ", ".join(os.path.basename(p) for p in processed_img_path) if isinstance(processed_img_path, list) else os.path.basename(processed_img_path)
         
+        repo_name = os.getenv("GITHUB_REPOSITORY", "Vikram-Bosak/american-army-news-agent")
+        run_id = os.getenv("GITHUB_RUN_ID", "")
+        server_url = os.getenv("GITHUB_SERVER_URL", "https://github.com")
+        repo_url = f"{server_url}/{repo_name}"
+        run_url = f"{repo_url}/actions/runs/{run_id}" if run_id else "N/A"
+
         report = f"""✅ American Army News Pipeline Run Completed
         
 🇺🇸 Headline:
@@ -165,7 +207,13 @@ def job():
 
 Original File: {original_files_str}
 
-🔗 Facebook Photo Post URL:
+📦 GitHub Repository:
+{repo_url}
+
+📄 Workflow Run:
+{run_url}
+
+📘 Facebook Post URL:
 {post_url}
 
 📄 Source Article:
